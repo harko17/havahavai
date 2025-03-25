@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'Extra/Sort_filter.dart';
 import 'main.dart';
 import 'cart.dart';
 
@@ -11,13 +12,25 @@ class CataloguePage extends ConsumerStatefulWidget {
 class _CataloguePageState extends ConsumerState<CataloguePage> {
   ScrollController _scrollController = ScrollController();
 
+  List<String> selectedCategories = [];
+  List<String> selectedBrands = [];
+  double? minPrice;
+  double? maxPrice;
+  double? minRating;
+  double? minDiscount;
+  String selectedSortOption = 'Popularity';
+
+  TextEditingController searchController = TextEditingController();
+  String searchQuery = '';
+
   @override
   void initState() {
     super.initState();
     final productsNotifier = ref.read(productsProvider.notifier);
     _scrollController.addListener(() {
       if (_scrollController.position.pixels >=
-          _scrollController.position.maxScrollExtent - 200) {
+          _scrollController.position.maxScrollExtent - 200 &&
+          !productsNotifier.isLoading) {
         productsNotifier.fetchProducts();
       }
     });
@@ -40,7 +53,7 @@ class _CataloguePageState extends ConsumerState<CataloguePage> {
               alignment: Alignment.center,
               children: [
                 IconButton(
-                  icon: Icon(Icons.shopping_cart,size: 30,),
+                  icon: Icon(Icons.shopping_cart, size: 30),
                   onPressed: () => Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => CartPage()),
@@ -64,7 +77,78 @@ class _CataloguePageState extends ConsumerState<CataloguePage> {
           }),
         ],
       ),
-      body: productsList(),
+      body: Column(
+        children: [
+          SizedBox(height: 8),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 8),
+            child: TextField(
+              controller: searchController,
+              decoration: InputDecoration(
+                fillColor: Colors.white,
+                filled: true,
+                hintText: 'Search products...',
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(borderRadius: BorderRadius.zero),
+              ),
+              onChanged: (value) {
+                setState(() {
+                  searchQuery = value;
+                  ref.read(productsProvider.notifier).applyFilters(
+                    searchQuery: searchQuery,
+                    categories: selectedCategories,
+                    brands: selectedBrands,
+                    minPrice: minPrice,
+                    maxPrice: maxPrice,
+                    minRating: minRating,
+                    minDiscount: minDiscount,
+                    sortOption: selectedSortOption,
+                  );
+                });
+              },
+            ),
+          ),
+          SizedBox(height: 8),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+                    ),
+                    onPressed: () {
+                      showFilterBottomSheet();
+                    },
+                    icon: Icon(Icons.filter_list),
+                    label: Text('Filter'),
+                  ),
+                ),
+                SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+                    ),
+                    onPressed: () {
+                      showSortOptions();
+                    },
+                    icon: Icon(Icons.sort),
+                    label: Text('Sort'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(height: 8),
+          Expanded(
+            child: productsList(),
+          ),
+        ],
+      ),
     );
   }
 
@@ -97,6 +181,77 @@ class _CataloguePageState extends ConsumerState<CataloguePage> {
       );
     });
   }
+
+  void showFilterBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return FilterOptions(
+          selectedCategories: selectedCategories,
+          selectedBrands: selectedBrands,
+          minPrice: minPrice,
+          maxPrice: maxPrice,
+          minRating: minRating,
+          minDiscount: minDiscount,
+          onApply: ({
+            required List<String> categories,
+            required List<String> brands,
+            required double? minPriceValue,
+            required double? maxPriceValue,
+            required double? minRatingValue,
+            required double? minDiscountValue,
+          }) {
+            setState(() {
+              selectedCategories = categories;
+              selectedBrands = brands;
+              minPrice = minPriceValue;
+              maxPrice = maxPriceValue;
+              minRating = minRatingValue;
+              minDiscount = minDiscountValue;
+              ref.read(productsProvider.notifier).applyFilters(
+                searchQuery: searchQuery,
+                categories: selectedCategories,
+                brands: selectedBrands,
+                minPrice: minPrice,
+                maxPrice: maxPrice,
+                minRating: minRating,
+                minDiscount: minDiscount,
+                sortOption: selectedSortOption,
+              );
+            });
+            Navigator.pop(context);
+          },
+        );
+      },
+    );
+  }
+
+  void showSortOptions() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return SortOptions(
+          selectedOption: selectedSortOption,
+          onSelect: (option) {
+            setState(() {
+              selectedSortOption = option;
+              ref.read(productsProvider.notifier).applyFilters(
+                searchQuery: searchQuery,
+                categories: selectedCategories,
+                brands: selectedBrands,
+                minPrice: minPrice,
+                maxPrice: maxPrice,
+                minRating: minRating,
+                minDiscount: minDiscount,
+                sortOption: selectedSortOption,
+              );
+            });
+            Navigator.pop(context);
+          },
+        );
+      },
+    );
+  }
 }
 
 class ProductCard extends StatelessWidget {
@@ -122,37 +277,38 @@ class ProductCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       color: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(2)),
       elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.zero),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Stack(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-                child: Image.network(
-                  imageUrl,
-                  height: 160,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                ),
-              ),
-              Positioned(
-                bottom: 8,
-                right: 8,
-                child: ElevatedButton(
-                  onPressed: onAddToCart,
-                  style: ElevatedButton.styleFrom(
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.redAccent,
-                    elevation: 4,
+          Expanded(
+            child: Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(0)),
+                  child: Image.network(
+                    imageUrl,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
                   ),
-                  child: Text('Add'),
                 ),
-              ),
-            ],
+                Positioned(
+                  bottom: 8,
+                  right: 8,
+                  child: ElevatedButton(
+                    onPressed: onAddToCart,
+                    style: ElevatedButton.styleFrom(
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.redAccent,
+                      elevation: 2,
+                    ),
+                    child: Text('Add'),
+                  ),
+                ),
+              ],
+            ),
           ),
           Padding(
             padding: const EdgeInsets.all(8.0),
