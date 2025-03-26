@@ -63,43 +63,66 @@ class MyApp extends StatelessWidget {
 }
 
 class ProductsNotifier extends StateNotifier<List<Product>> {
-  ProductsNotifier() : super([]) {
-    fetchProducts();
-  }
+  ProductsNotifier() : super([]);
 
-  int _currentPage = 1;
   bool isLoading = false;
-  final int _limit = 10;
+  final int _limit = 30;
+  int totalPages = 3;
+  int totalProducts = 0;
   List<Product> allProducts = [];
 
-  Future<void> fetchProducts() async {
+  Future<void> fetchProducts({required int page, bool reset = false}) async {
     if (isLoading) return;
+
+    if (reset) {
+      state = [];
+      allProducts = [];
+    }
+
     isLoading = true;
-    Response response = await Dio().get('https://dummyjson.com/products',
-        queryParameters: {'limit': _limit, 'skip': (_currentPage - 1) * _limit});
-    List data = response.data['products'];
-    List<Product> newProducts = data.map((item) {
-      double price = item['price'].toDouble();
-      double discount = item['discountPercentage'].toDouble();
-      double discountedPrice = price - (price * discount / 100);
-      return Product(
-        id: item['id'],
-        title: item['title'],
-        brand: item['brand'],
-        category: item['category'],
-        imageUrl: item['thumbnail'],
-        price: price,
-        discountedPrice: discountedPrice,
-        discountPercentage: discount,
-        rating: item['rating'] != null ? item['rating'].toDouble() : 0.0,
-        popularity: item['stock'] ?? 0,
-        dateAdded: DateTime.now(),
+
+    try {
+      Response response = await Dio().get(
+        'https://dummyjson.com/products',
+        queryParameters: {'limit': _limit, 'skip': (page - 1) * _limit},
       );
-    }).toList();
-    allProducts = [...allProducts, ...newProducts];
-    state = [...state, ...newProducts];
-    isLoading = false;
-    _currentPage++;
+      List data = response.data['products'];
+      totalProducts = response.data['total'] ?? 0;
+      totalPages = (totalProducts / _limit).ceil();
+
+      List<Product> newProducts = data.map((item) {
+        double price = item['price'] != null ? item['price'].toDouble() : 0.0;
+        double discount = item['discountPercentage'] != null
+            ? item['discountPercentage'].toDouble()
+            : 0.0;
+        double discountedPrice = price - (price * discount / 100);
+        return Product(
+          id: item['id'] ?? 0,
+          title: item['title'] ?? '',
+          brand: item['brand'] ?? '',
+          category: item['category'] ?? '',
+          imageUrl: item['thumbnail'] ?? '',
+          price: price,
+          discountedPrice: discountedPrice,
+          discountPercentage: discount,
+          rating: item['rating'] != null ? item['rating'].toDouble() : 0.0,
+          popularity: item['stock'] ?? 0,
+          dateAdded: DateTime.now(),
+        );
+      }).toList();
+
+      if (reset) {
+        allProducts = newProducts;
+        state = newProducts;
+      } else {
+        allProducts = [...allProducts, ...newProducts];
+        state = [...state, ...newProducts];
+      }
+    } catch (e) {
+      // Handle exception if needed
+    } finally {
+      isLoading = false;
+    }
   }
 
   void applyFilters({
@@ -168,13 +191,15 @@ class ProductsNotifier extends StateNotifier<List<Product>> {
               .sort((a, b) => b.discountedPrice.compareTo(a.discountedPrice));
           break;
         case 'Popularity':
-          filteredProducts.sort((b, a) => a.popularity.compareTo(b.popularity));
+          filteredProducts
+              .sort((b, a) => a.popularity.compareTo(b.popularity));
           break;
         case 'Rating: High to Low':
           filteredProducts.sort((b, a) => a.rating.compareTo(b.rating));
           break;
         case 'Newest First':
-          filteredProducts.sort((b, a) => a.dateAdded.compareTo(b.dateAdded));
+          filteredProducts
+              .sort((b, a) => a.dateAdded.compareTo(b.dateAdded));
           break;
       }
     }

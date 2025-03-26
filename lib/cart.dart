@@ -1,6 +1,9 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:havahavai/catalogue.dart';
+
 import 'main.dart';
+import 'package:flutter/material.dart';
+
 
 class CartPage extends ConsumerWidget {
   @override
@@ -12,11 +15,24 @@ class CartPage extends ConsumerWidget {
     return Scaffold(
       backgroundColor: Colors.pink[100],
       appBar: AppBar(
-        title: Text('Cart Summary'),
+        title: Text('Cart'),
         backgroundColor: Colors.pink[100],
         centerTitle: true,
       ),
-      body: Column(
+      body: cartItems.isEmpty
+          ? Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              'Your cart is empty!',
+              style: TextStyle(fontSize: 20),
+            ),
+
+          ],
+        ),
+      )
+          : Column(
         children: [
           Expanded(
             child: ListView.builder(
@@ -52,24 +68,45 @@ class CartPage extends ConsumerWidget {
                                 style: TextStyle(color: Colors.grey),
                               ),
                               SizedBox(height: 8),
-                              Text(
-                                '₹${item.product.discountedPrice.toStringAsFixed(2)}',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
                               Row(
                                 children: [
-                                  IconButton(
-                                    iconSize: 28,
-                                    icon: Icon(Icons.remove),
-                                    onPressed: () => cartNotifier.decrementQuantity(item),
+                                  Text(
+                                    '₹${item.product.price.toStringAsFixed(2)}',
+                                    style: TextStyle(
+                                        color: Colors.grey,
+                                        decoration: TextDecoration.lineThrough),
                                   ),
-                                  Text(item.quantity.toString()),
-                                  IconButton(
-                                    iconSize: 28,
-                                    icon: Icon(Icons.add),
-                                    onPressed: () => cartNotifier.incrementQuantity(item),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    '₹${item.product.discountedPrice.toStringAsFixed(2)}',
+                                    style: TextStyle(fontWeight: FontWeight.bold),
                                   ),
                                 ],
+                              ),
+                              Text(
+                                '${item.product.discountPercentage.toStringAsFixed(2)}% OFF',
+                                style: TextStyle(color: Colors.redAccent),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.only(left: 110),
+                                child: Container(
+                                  color: Colors.black12,
+                                  child: Row(
+                                    children: [
+                                      IconButton(
+                                        iconSize: 28,
+                                        icon: Icon(Icons.remove),
+                                        onPressed: () => cartNotifier.decrementQuantity(item),
+                                      ),
+                                      Text(item.quantity.toString(),style: TextStyle(color: Colors.pink),),
+                                      IconButton(
+                                        iconSize: 28,
+                                        icon: Icon(Icons.add),
+                                        onPressed: () => cartNotifier.incrementQuantity(item),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ),
                             ],
                           ),
@@ -89,7 +126,6 @@ class CartPage extends ConsumerWidget {
               children: [
                 Expanded(
                   child: Column(
-                    mainAxisAlignment: MainAxisAlignment.start,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('Total Items: ${cartItems.length}', style: TextStyle(fontSize: 16)),

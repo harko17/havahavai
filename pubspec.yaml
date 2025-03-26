@@ -37,6 +37,7 @@ dependencies:
   dio:
   flutter_riverpod:
   smooth_page_indicator:
+  shimmer:
 
 dev_dependencies:
   flutter_test:

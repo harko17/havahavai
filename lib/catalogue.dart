@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'Extra/Sort_filter.dart';
+import 'package:havahavai/Extra/Sort_filter.dart';
+import 'package:havahavai/main.dart';
+import 'package:shimmer/shimmer.dart';
+
 import 'main.dart';
 import 'cart.dart';
 
@@ -10,8 +13,7 @@ class CataloguePage extends ConsumerStatefulWidget {
 }
 
 class _CataloguePageState extends ConsumerState<CataloguePage> {
-  ScrollController _scrollController = ScrollController();
-
+  int currentPage = 1;
   List<String> selectedCategories = [];
   List<String> selectedBrands = [];
   double? minPrice;
@@ -27,18 +29,13 @@ class _CataloguePageState extends ConsumerState<CataloguePage> {
   void initState() {
     super.initState();
     final productsNotifier = ref.read(productsProvider.notifier);
-    _scrollController.addListener(() {
-      if (_scrollController.position.pixels >=
-          _scrollController.position.maxScrollExtent - 200 &&
-          !productsNotifier.isLoading) {
-        productsNotifier.fetchProducts();
-      }
-    });
+    productsNotifier.fetchProducts(page: currentPage);
   }
 
   @override
   Widget build(BuildContext context) {
     final productsNotifier = ref.watch(productsProvider.notifier);
+    final totalPages = productsNotifier.totalPages;
 
     return Scaffold(
       backgroundColor: Colors.pink[100],
@@ -147,6 +144,63 @@ class _CataloguePageState extends ConsumerState<CataloguePage> {
           Expanded(
             child: productsList(),
           ),
+          Padding(
+            padding: EdgeInsets.only(left: 8, right: 8, top: 15, bottom: 45),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                ElevatedButton(
+                  onPressed: currentPage > 1
+                      ? () async {
+                    setState(() {
+                      currentPage--;
+                    });
+                    await ref.read(productsProvider.notifier).fetchProducts(
+                      page: currentPage,
+                      reset: true,
+                    );
+                    ref.read(productsProvider.notifier).applyFilters(
+                      searchQuery: searchQuery,
+                      categories: selectedCategories,
+                      brands: selectedBrands,
+                      minPrice: minPrice,
+                      maxPrice: maxPrice,
+                      minRating: minRating,
+                      minDiscount: minDiscount,
+                      sortOption: selectedSortOption,
+                    );
+                  }
+                      : null,
+                  child: Text('Previous'),
+                ),
+                Text('Page $currentPage of $totalPages'),
+                ElevatedButton(
+                  onPressed: currentPage < totalPages
+                      ? () async {
+                    setState(() {
+                      currentPage++;
+                    });
+                    await ref.read(productsProvider.notifier).fetchProducts(
+                      page: currentPage,
+                      reset: true,
+                    );
+                    ref.read(productsProvider.notifier).applyFilters(
+                      searchQuery: searchQuery,
+                      categories: selectedCategories,
+                      brands: selectedBrands,
+                      minPrice: minPrice,
+                      maxPrice: maxPrice,
+                      minRating: minRating,
+                      minDiscount: minDiscount,
+                      sortOption: selectedSortOption,
+                    );
+                  }
+                      : null,
+                  child: Text('Next'),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -155,17 +209,69 @@ class _CataloguePageState extends ConsumerState<CataloguePage> {
   Widget productsList() {
     return Consumer(builder: (context, ref, _) {
       final products = ref.watch(productsProvider);
+      final productsNotifier = ref.watch(productsProvider.notifier);
       final cartNotifier = ref.watch(cartProvider.notifier);
+
+      if (productsNotifier.isLoading) {
+        return GridView.builder(
+          padding: EdgeInsets.all(8),
+          itemCount: 10,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            childAspectRatio: 0.64,
+            crossAxisSpacing: 8,
+            mainAxisSpacing: 8,
+          ),
+          itemBuilder: (_, index) {
+            return Shimmer.fromColors(
+              baseColor: Colors.grey.shade300,
+              highlightColor: Colors.grey.shade100,
+              child: Card(
+                color: Colors.white,
+                elevation: 4,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Container(color: Colors.white),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(height: 10, color: Colors.white),
+                          SizedBox(height: 5),
+                          Container(height: 10, width: 60, color: Colors.white),
+                          SizedBox(height: 8),
+                          Container(height: 10, width: 40, color: Colors.white),
+                          SizedBox(height: 8),
+                          Container(height: 10, width: 80, color: Colors.white),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      }
+
+      if (products.isEmpty) {
+        return Center(child: Text('No products available.'));
+      }
+
       return GridView.builder(
-        controller: _scrollController,
         padding: EdgeInsets.all(8),
+        itemCount: products.length,
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 2,
           childAspectRatio: 0.64,
           crossAxisSpacing: 8,
           mainAxisSpacing: 8,
         ),
-        itemCount: products.length,
         itemBuilder: (_, index) {
           Product product = products[index];
           return ProductCard(
@@ -250,99 +356,6 @@ class _CataloguePageState extends ConsumerState<CataloguePage> {
           },
         );
       },
-    );
-  }
-}
-
-class ProductCard extends StatelessWidget {
-  final String imageUrl;
-  final String title;
-  final String brand;
-  final double price;
-  final double discountedPrice;
-  final double discountPercentage;
-  final VoidCallback onAddToCart;
-
-  const ProductCard({
-    required this.imageUrl,
-    required this.title,
-    required this.brand,
-    required this.price,
-    required this.discountedPrice,
-    required this.discountPercentage,
-    required this.onAddToCart,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      color: Colors.white,
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Stack(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(0)),
-                  child: Image.network(
-                    imageUrl,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                  ),
-                ),
-                Positioned(
-                  bottom: 8,
-                  right: 8,
-                  child: ElevatedButton(
-                    onPressed: onAddToCart,
-                    style: ElevatedButton.styleFrom(
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
-                      backgroundColor: Colors.white,
-                      foregroundColor: Colors.redAccent,
-                      elevation: 2,
-                    ),
-                    child: Text('Add'),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title,
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                Text(brand, style: TextStyle(color: Colors.grey)),
-                SizedBox(height: 8),
-                Row(
-                  children: [
-                    Text(
-                      '₹${price.toStringAsFixed(2)}',
-                      style: TextStyle(
-                          color: Colors.grey,
-                          decoration: TextDecoration.lineThrough),
-                    ),
-                    SizedBox(width: 8),
-                    Text(
-                      '₹${discountedPrice.toStringAsFixed(2)}',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ],
-                ),
-                Text(
-                  '${discountPercentage.toStringAsFixed(2)}% OFF',
-                  style: TextStyle(color: Colors.redAccent),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

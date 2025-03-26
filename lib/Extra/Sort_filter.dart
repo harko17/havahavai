@@ -302,3 +302,97 @@ class SortOptions extends StatelessWidget {
     );
   }
 }
+
+
+class ProductCard extends StatelessWidget {
+  final String imageUrl;
+  final String title;
+  final String brand;
+  final double price;
+  final double discountedPrice;
+  final double discountPercentage;
+  final VoidCallback onAddToCart;
+
+  const ProductCard({
+    required this.imageUrl,
+    required this.title,
+    required this.brand,
+    required this.price,
+    required this.discountedPrice,
+    required this.discountPercentage,
+    required this.onAddToCart,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: Colors.white,
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(0)),
+                  child: Image.network(
+                    imageUrl,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                Positioned(
+                  bottom: 8,
+                  right: 8,
+                  child: ElevatedButton(
+                    onPressed: onAddToCart,
+                    style: ElevatedButton.styleFrom(
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.redAccent,
+                      elevation: 2,
+                    ),
+                    child: Text('Add'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                Text(brand, style: TextStyle(color: Colors.grey)),
+                SizedBox(height: 8),
+                Row(
+                  children: [
+                    Text(
+                      '₹${price.toStringAsFixed(2)}',
+                      style: TextStyle(
+                          color: Colors.grey,
+                          decoration: TextDecoration.lineThrough),
+                    ),
+                    SizedBox(width: 8),
+                    Text(
+                      '₹${discountedPrice.toStringAsFixed(2)}',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+                Text(
+                  '${discountPercentage.toStringAsFixed(2)}% OFF',
+                  style: TextStyle(color: Colors.redAccent),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
